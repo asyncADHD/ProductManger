@@ -1,0 +1,127 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <title>Dynamic Data Display</title>
+</head>
+<body>
+<nav class="navbar navbar-default">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"></button>
+      <a class="navbar-brand" href="#">Project</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li><a href="{% url 'home' %}">Home</a></li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Tools <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="{% url 'product_list' %}">Products</a></li>
+            <li><a href="{% url 'price_history' %}">Price History</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<div class="container">
+    <div class="form-container">
+        <form id="product-form" class="form well">
+            <div class="form-group">
+                <label for="ticker-select">Select Ticker:</label>
+            <select id="ticker-select" class="form-control">
+                <option value="" disabled selected>Select a ticker</option>
+                {% for product in products %}
+                <option value="{{ product.id }}">{{ product.ticker }} - {{ product.name }}</option>
+                {% endfor %}
+            </select>
+            </div>
+            <button type="button" id="fetch-ticker-button" class="btn btn-primary">Fetch Ticker Data</button>
+        </form>
+    </div>
+    <div class="table-container">
+        <h2>Historical Data</h2>
+        <table class="table table-hover table-striped table-bordered" id="historical-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Open</th>
+                    <th>High</th>
+                    <th>Low</th>
+                    <th>Close</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data rows will be inserted here -->
+            </tbody>
+        </table>
+    </div>
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Automatically fetch data if there's a default selection when the page loads
+    fetchData();
+
+    $('#ticker-select').change(fetchData);  // Trigger on user selection
+    $('#fetch-ticker-button').click(fetchData);  // Button to manually trigger data fetch
+
+    // Set up polling to refresh data every 10 seconds
+    setInterval(function() {
+        if ($('#ticker-select').val()) {  // Check if a ticker is selected
+            fetchData();  // Only fetch data if a ticker is selected
+        }
+    }, 10000);  // 10000 milliseconds = 10 seconds
+
+    function fetchData() {
+        var productId = $('#ticker-select').val();
+        if (!productId) {
+            console.log('Product ID is null or not selected, not fetching data.');
+            return;  // Exit if no product ID is selected
+        }
+
+        // Optionally, display a loading message or spinner
+        $('#historical-table tbody').html('<tr><td colspan="5" class="text-center">Loading...</td></tr>');
+
+        $.ajax({
+            url: "/historical_data/" + productId,
+            type: 'GET',
+            success: function(data) {
+                if (data && data.length > 0) {
+                    updateTable(data);
+                } else {
+                    // Handle the case where there is no data
+                    $('#historical-table tbody').html('<tr><td colspan="5" class="text-center">No data available.</td></tr>');
+                }
+            },
+            error: function(error) {
+                console.log('Error fetching data:', error);
+                // Display an error message on the table
+                $('#historical-table tbody').html('<tr><td colspan="5" class="text-center">Error fetching data.</td></tr>');
+            }
+        });
+    }
+
+    function updateTable(data) {
+        var rows = '';
+        data.forEach(function(historical) {
+            rows += `<tr>
+                        <td>${new Date(historical.timestamp).toLocaleString()}</td>  // Formatting the date for better readability
+                        <td>${historical.open.toFixed(2)}</td>  // Assuming numerical values, formatting to 2 decimal places
+                        <td>${historical.high.toFixed(2)}</td>
+                        <td>${historical.low.toFixed(2)}</td>
+                        <td>${historical.close.toFixed(2)}</td>
+                    </tr>`;
+        });
+        $('#historical-table tbody').html(rows);
+    }
+});
+</script>
+</body>
+</html>
